@@ -63,13 +63,15 @@ static inline BDD BDD_SETDATA(BDD s, uint32_t data)
     return (s & 0x800000ffffffffff) | (((uint64_t)data & 0x7fffff)<<40);
 }
 
+/**
+ * BDD node structure
+ */
 typedef struct __attribute__((packed)) bddnode {
-    uint64_t high     : 40;
-    uint32_t level    : 24;
-    uint64_t low      : 40;
-    unsigned int data : 23;
-    uint8_t comp      : 1;
+    uint64_t a, b;
 } *bddnode_t; // 16 bytes
+
+// HHHH HHHH HHVV VVVV | LLLL LLLL LLDD DDcD (little endian - in memory)
+// VVVV VVHH HHHH HHHH | cDDD DDLL LLLL LLLL (big endian)
 
 // Ensure our bddnode is 16 bytes
 typedef char __sylvan_check_bddnode_t_is_16_bytes[(sizeof(struct bddnode)==16) ? 1 : -1];
@@ -77,67 +79,71 @@ typedef char __sylvan_check_bddnode_t_is_16_bytes[(sizeof(struct bddnode)==16) ?
 inline uint64_t
 bddnode_gethigh(bddnode_t n)
 {
-    return n->high;
+    return n->a & 0x000000ffffffffff;
 }
 
 inline uint64_t
 bddnode_getlow(bddnode_t n)
 {
-    return n->low;
+    return n->b & 0x000000ffffffffff;
 }
 
 inline uint32_t
 bddnode_getlevel(bddnode_t n)
 {
-    return n->level;
+    return n->a >> 40;
 }
 
 inline uint32_t
 bddnode_getdata(bddnode_t n)
 {
-    return n->data;
+    return (n->b & 0x7fffff0000000000) >> 40;
 }
 
 inline uint8_t
 bddnode_getcomp(bddnode_t n)
 {
-    return n->comp;
+    return (n->b & 0x8000000000000000) ? 1 : 0;
 }
 
 inline void
 bddnode_sethigh(bddnode_t n, uint64_t high)
 {
-    n->high = high;
+    /* assumption: high has max 40 bits set */
+    n->a = (n->a & 0xffffff0000000000) | high;
 }
 
 inline void
 bddnode_setlow(bddnode_t n, uint64_t low)
 {
-    n->low = low;
+    /* assumption: low has max 40 bits set */
+    n->b = (n->b & 0xffffff0000000000) | low;
 }
 
 inline void
 bddnode_setlevel(bddnode_t n, uint32_t level)
 {
-    n->level = level;
+    n->a = (n->a & 0x000000ffffffffff) | ((uint64_t)level << 40);
 }
 
 inline void
 bddnode_setdata(bddnode_t n, uint32_t data)
 {
-    n->data = data;
+    n->b = (n->b & 0x800000ffffffffff) | ((uint64_t)data << 40);
 }
 
 inline void
 bddnode_setcomp(bddnode_t n, uint8_t comp)
 {
-    n->comp = comp;
+    if (comp) n->b |= 0x8000000000000000;
+    else n->b &= 0x7fffffffffffffff;
 }
 
 inline void
 bddnode_make(bddnode_t n, uint32_t level, uint64_t high, uint64_t low, uint8_t comp)
 {
-    *n = (struct bddnode){high, level, low, 0, comp};
+    n->a = high | (((uint64_t)level) << 40);
+    n->b = ((uint64_t)comp << 63) | low;
 }
 
 #define GETNODE(bdd) ((bddnode_t)llmsset_index_to_ptr(nodes, BDD_STRIPMARK(bdd)))
