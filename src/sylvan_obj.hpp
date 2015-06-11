@@ -25,7 +25,6 @@
 
 namespace sylvan {
 
-class Bdd;
 class BddMap;
 
 class Bdd {
@@ -359,6 +358,107 @@ public:
     int isEmpty();
 };
 
+class MtbddMap;
+
+class Mtbdd {
+    friend class Sylvan;
+    friend class MtbddMap;
+    MTBDD mtbdd;
+public:
+    Mtbdd() { mtbdd = sylvan_false; mtbdd_protect(&mtbdd); }
+    Mtbdd(const MTBDD from) : mtbdd(from) { mtbdd_protect(&mtbdd); }
+    Mtbdd(const Mtbdd &from) : mtbdd(from.mtbdd) { mtbdd_protect(&mtbdd); }
+    ~Mtbdd() { mtbdd_unprotect(&mtbdd); }
+
+    static Mtbdd uint64Terminal(uint64_t value);
+    static Mtbdd doubleTerminal(double value);
+    static Mtbdd terminal(uint32_t type, uint64_t value);
+    static Mtbdd mtbddVar(uint32_t variable);
+
+    Mtbdd Negate() const;
+    Mtbdd Apply(const Mtbdd &other, mtbdd_apply_op op) const;
+    Mtbdd UApply(mtbdd_uapply_op op, size_t param) const;
+    Mtbdd Abstract(const Mtbdd &variables, mtbdd_apply_op op) const;
+
+    Mtbdd Ite(const Mtbdd &g, const Mtbdd &h) const;
+    Mtbdd Plus(const Mtbdd &other) const;
+    Mtbdd Times(const Mtbdd &other) const;
+    Mtbdd Min(const Mtbdd &other) const;
+    Mtbdd Max(const Mtbdd &other) const;
+    Mtbdd AbstractPlus(const Mtbdd &variables) const;
+    Mtbdd AbstractTimes(const Mtbdd &variables) const;
+    Mtbdd AbstractMin(const Mtbdd &variables) const;
+    Mtbdd AbstractMax(const Mtbdd &variables) const;
+    Mtbdd AndExists(const Mtbdd &other, const Mtbdd &variables) const;
+
+    Mtbdd MtbddThreshold(double value) const;
+    Mtbdd MtbddStrictThreshold(double value) const;
+    Bdd BddThreshold(double value) const;
+    Bdd BddStrictThreshold(double value) const;
+
+    /**
+     * @brief Computes the support of a Mtbdd.
+     */
+    Mtbdd Support() const;
+
+    /**
+     * @brief Functional composition. Whenever a variable v in the map m is found in the MTBDD,
+     *        it is substituted by the associated function (which should be a Boolean MTBDD)
+     * You can also use this function to implement variable reordering.
+     */
+    Mtbdd Compose(MtbddMap &m) const;
+
+    int operator==(const Mtbdd& other) const;
+    int operator!=(const Mtbdd& other) const;
+    Mtbdd operator=(const Mtbdd& right);
+    Mtbdd operator!() const;
+    Mtbdd operator~() const;
+    Mtbdd operator*(const Mtbdd& other) const;
+    Mtbdd operator*=(const Mtbdd& other);
+    Mtbdd operator+(const Mtbdd& other) const;
+    Mtbdd operator+=(const Mtbdd& other);
+    Mtbdd operator-(const Mtbdd& other) const;
+    Mtbdd operator-=(const Mtbdd& other);
+};
+
+class MtbddMap
+{
+    friend class Mtbdd;
+    MTBDD mtbdd;
+    MtbddMap(MTBDD from) : mtbdd(from) { mtbdd_protect(&mtbdd); }
+    MtbddMap(Mtbdd &from) : mtbdd(from.mtbdd) { mtbdd_protect(&mtbdd); }
+public:
+    MtbddMap() : mtbdd(mtbdd_map_empty()) { mtbdd_protect(&mtbdd); }
+    ~MtbddMap() { mtbdd_unprotect(&mtbdd); }
+
+    MtbddMap(uint32_t key_variable, Mtbdd value);
+
+    MtbddMap operator+(const Mtbdd& other) const;
+    MtbddMap operator+=(const Mtbdd& other);
+    MtbddMap operator-(const Mtbdd& other) const;
+    MtbddMap operator-=(const Mtbdd& other);
+
+    /**
+     * @brief Adds a key-value pair to the map
+     */
+    void put(uint32_t key, Mtbdd value);
+
+    /**
+     * @brief Removes a key-value pair from the map
+     */
+    void removeKey(uint32_t key);
+
+    /**
+     * @brief Returns the number of key-value pairs in this map
+     */
+    size_t size();
+
+    /**
+     * @brief Returns non-zero when this map is empty
+     */
+    int isEmpty();
+};
+
 class Sylvan {
 public:
     /**
@@ -377,6 +477,11 @@ public:
      * A granularity of 1 means that every BDD operation will be cached at every variable level.
      */
     static void initBdd(int granularity);
+
+    /**
+     * @brief Initializes the MTBDD module of the Sylvan framework.
+     */
+    static void initMtbdd();
 
     /**
      * @brief Frees all memory in use by Sylvan.
