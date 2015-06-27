@@ -578,6 +578,28 @@ test_lddmc()
     sylvan_quit();
 }
 
+void
+test_mtbdd()
+{
+    LACE_ME;
+
+    sylvan_init_package(1<<20, 1<<20, 1<<16, 1<<16);
+    sylvan_init_mtbdd();
+
+    uint32_t vars_array[] = {0,1,2,3,4,5,6,7,8,9};
+    MTBDD vars = mtbdd_fromarray(vars_array, 10);
+
+    MTBDD u10 = mtbdd_makeleaf(0, 10);
+    MTBDD u21 = mtbdd_makeleaf(0, 21);
+
+    MTBDD a = mtbdd_false;
+    a = mtbdd_union_cube(a, vars, ((char[]){0,2,1,1,1,2,2,2,2,2}), u10);
+    a = mtbdd_union_cube(a, vars, ((char[]){0,2,1,0,1,2,2,2,2,2}), u21);
+    mtbdd_fprintdot(stderr, a, NULL);
+
+    sylvan_quit();
+}
+
 void runtests(int threads)
 {
     lace_init(threads, 100000);
@@ -586,6 +608,11 @@ void runtests(int threads)
     printf(BOLD "Testing LDDMC... ");
     fflush(stdout);
     test_lddmc();
+    printf(LGREEN "success" NC "!\n");
+
+    printf(BOLD "Testing multi-terminal decision diagrams... ");
+    fflush(stdout);
+    test_mtbdd();
     printf(LGREEN "success" NC "!\n");
 
     printf(BOLD "Testing Sylvan\n");
